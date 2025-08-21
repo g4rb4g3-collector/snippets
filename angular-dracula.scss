@@ -1,34 +1,98 @@
-@use '@angular/material' as mat;
-
-$my-primary: (
-  50: #e0f7fe,
-  100: #b3e9fd,
-  200: #80dbfc,
-  300: #4dcbfa,
-  400: #26bffa,
-  500: #00b3fa,
-  600: #00a8f9,
-  700: #009af8,
-  800: #008cf6,
-  900: #0073f4,
+$dracula-primary: (
+  50 : #f5eafa,
+  100 : #e9d6f7,
+  200 : #cdb0ee,
+  300 : #b089e1,
+  400 : #a272df,
+  500 : #bd93f9, // Core Dracula purple
+  600 : #9f6deb,
+  700 : #7646e6,
+  800 : #5033ab,
+  900 : #362167,
+  A100: #dabfff,
+  A200: #bfa3fa,
+  A400: #ddd6ff,
+  A700: #9678ee,
   contrast: (
-    50: #000,
-    100: #000,
-    // ...etc
+    50 : #282a36,
+    100 : #282a36,
+    200 : #282a36,
+    300 : #282a36,
+    400 : #282a36,
+    500 : #f8f8f2,
+    600 : #f8f8f2,
+    700 : #f8f8f2,
+    800 : #f8f8f2,
+    900 : #f8f8f2,
+    A100: #282a36,
+    A200: #282a36,
+    A400: #282a36,
+    A700: #f8f8f2,
   )
 );
 
-// Just assign your palette when defining the theme, no function needed
-html {
-  @include mat.theme(
-    (
-      color: (
-        primary: $my-primary,
-        // accent, warn, tertiary, etc.
-        theme-type: dark,
-      ),
-      typography: Roboto,
-      density: 0,
-    )
-  );
-}
+$dracula-accent: (
+  50 : #ffe6f7,
+  100 : #fdc4e8,
+  200 : #faa1d3,
+  300 : #ff79c6, // Core Dracula pink
+  400 : #d763a7,
+  500 : #ff79c6,
+  600 : #fa59b6,
+  700 : #e44a99,
+  800 : #9e3368,
+  900 : #511934,
+  A100: #fff1fb,
+  A200: #ffd6f3,
+  A400: #fdc3e7,
+  A700: #f882cb,
+  contrast: (
+    50 : #282a36,
+    100 : #282a36,
+    200 : #282a36,
+    300 : #f8f8f2,
+    400 : #f8f8f2,
+    500 : #f8f8f2,
+    600 : #f8f8f2,
+    700 : #f8f8f2,
+    800 : #f8f8f2,
+    900 : #f8f8f2,
+    A100: #282a36,
+    A200: #282a36,
+    A400: #282a36,
+    A700: #282a36,
+  )
+);
+
+$dracula-warn: (
+  50 : #fff2e0,
+  100 : #ffd6b1,
+  200 : #ffb86c, // Core Dracula orange
+  300 : #ffaa44,
+  400 : #ff870d,
+  500 : #ffb86c,
+  600 : #ee9900,
+  700 : #bb7700,
+  800 : #885700,
+  900 : #3f2800,
+  A100: #ffeccc,
+  A200: #ffd99b,
+  A400: #ffb54d,
+  A700: #ff9c0d,
+  contrast: (
+    50 : #282a36,
+    100 : #282a36,
+    200 : #282a36,
+    300 : #282a36,
+    400 : #282a36,
+    500 : #282a36,
+    600 : #282a36,
+    700 : #f8f8f2,
+    800 : #f8f8f2,
+    900 : #f8f8f2,
+    A100: #282a36,
+    A200: #282a36,
+    A400: #282a36,
+    A700: #282a36,
+  )
+);
