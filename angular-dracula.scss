@@ -1,0 +1,60 @@
+@use '@angular/material' as mat;
+
+// --- Light theme (cyan-orange palette) ---
+$light-primary: mat.define-palette(mat.$cyan-palette, 500, 100, 900);
+$light-accent: mat.define-palette(mat.$orange-palette, A200, A100, A400);
+$light-warn: mat.define-palette(mat.$red-palette);
+$light-theme: mat.theme((
+  color: (
+    primary: $light-primary,
+    accent: $light-accent,
+    warn: $light-warn,
+    // Add tertiary if needed
+  ),
+  typography: mat.define-typography-config(),
+  density: 0
+));
+
+// --- Dark Dracula theme ---
+$dracula-primary: mat.define-palette((
+  500: #bd93f9,
+  700: #8be9fd,
+  contrast: (
+    500: #f8f8f2,
+    700: #282a36
+  )
+));
+$dracula-accent: mat.define-palette((
+  500: #ff79c6,
+  700: #ff5555,
+  contrast: (
+    500: #282a36,
+    700: #f8f8f2
+  )
+));
+$dracula-warn: mat.define-palette((
+  500: #ffb86c,
+  contrast: (
+    500: #282a36
+  )
+));
+$dracula-theme: mat.theme((
+  color: (
+    primary: $dracula-primary,
+    accent: $dracula-accent,
+    warn: $dracula-warn,
+    // Add tertiary if needed
+  ),
+  typography: mat.define-typography-config(),
+  density: 0
+));
+
+// Apply light theme by default
+@include mat.core();
+@include mat.theme($light-theme);
+
+// Apply dark theme when .dracula-theme class is present
+.dracula-theme {
+  @include mat.theme($dracula-theme);
+  color-scheme: dark;
+}
