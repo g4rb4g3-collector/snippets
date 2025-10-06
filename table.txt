@@ -1,0 +1,76 @@
+// ===================== table-column-def.directive.ts =====================
+import { Directive, Input, TemplateRef } from '@angular/core';
+
+@Directive({
+  selector: '[tableColumnDef]',
+  standalone: true,
+})
+export class TableColumnDefDirective<T = any> {
+  @Input('tableColumnDef') accessor!: (row: T) => any;
+  @Input() label!: string;
+  constructor(public tpl: TemplateRef<any>) {}
+}
+
+// ===================== dynamic-table.component.ts =====================
+import { Component, Input, ContentChildren, QueryList } from '@angular/core';
+import { TableColumnDefDirective } from './table-column-def.directive';
+
+@Component({
+  selector: 'dynamic-table',
+  templateUrl: './dynamic-table.component.html',
+  standalone: true,
+  imports: [TableColumnDefDirective]
+})
+export class DynamicTableComponent<T = any> {
+  @Input()  T[] = [];
+  @ContentChildren(TableColumnDefDirective) columns!: QueryList<TableColumnDefDirective<T>>;
+}
+
+// ===================== dynamic-table.component.html =====================
+/*
+<table>
+  <thead>
+    <tr>
+      <th *ngFor="let col of columns">{{ col.label }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let row of data">
+      <td *ngFor="let col of columns">
+        <ng-container
+          [ngTemplateOutlet]="col.tpl"
+          [ngTemplateOutletContext]="{ $implicit: col.accessor(row), row: row }"
+        ></ng-container>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<ng-content></ng-content>
+*/
+
+// ===================== app.component.ts (example usage) =====================
+export interface IUser {
+  name: string;
+  age: number;
+  address: string;
+}
+
+users: IUser[] = [
+  { name: 'Alice', age: 28, address: '123 Main St' },
+  { name: 'Bob', age: 34, address: '456 Elm St' }
+];
+
+// ===================== app.component.html (example usage) =====================
+/*
+<dynamic-table [data]="users">
+  <ng-template *tableColumnDef="row => row.name; label: 'Name'" let-value>
+    <strong>{{ value }}</strong>
+  </ng-template>
+  <ng-template *tableColumnDef="row => row.age + 1; label: 'Age Next Year'" let-value>
+    <span>{{ value }}</span>
+  </ng-template>
+  <ng-template *tableColumnDef="row => row.address.toUpperCase(); label: 'Address'" let-value>
+    <span>{{ value }}</span>
+  </ng-template>
+</dynamic-table>
+*/
