@@ -1,0 +1,94 @@
+// ===================== table-column-def.directive.ts =====================
+import { Directive, Input, TemplateRef } from '@angular/core';
+
+@Directive({
+  selector: '[tableColumnDef]',
+  standalone: true,
+})
+export class TableColumnDefDirective<T = any> {
+  @Input('tableColumnDef') key!: keyof T & string; // E.g. 'name', 'age', 'address'
+  @Input() label!: string;
+  constructor(public tpl: TemplateRef<any>) {}
+}
+
+// ===================== dynamic-table.component.ts =====================
+import { Component, Input, ContentChildren, QueryList } from '@angular/core';
+import { TableColumnDefDirective } from './table-column-def.directive';
+
+@Component({
+  selector: 'dynamic-table',
+  templateUrl: './dynamic-table.component.html',
+  standalone: true,
+  imports: [TableColumnDefDirective],
+})
+export class DynamicTableComponent<T = any> {
+  @Input()  T[] = [];
+  @ContentChildren(TableColumnDefDirective) columns!: QueryList<TableColumnDefDirective<T>>;
+
+  get columnDefs(): TableColumnDefDirective<T>[] {
+    return this.columns ? this.columns.toArray() : [];
+  }
+}
+
+// ===================== dynamic-table.component.html =====================
+/*
+<table>
+  <thead>
+    <tr>
+      @for (col of columnDefs; track col) {
+        <th>{{ col.label }}</th>
+      }
+    </tr>
+  </thead>
+  <tbody>
+    @for (row of data; track row) {
+      <tr>
+        @for (col of columnDefs; track col) {
+          <td>
+            <ng-container 
+              [ngTemplateOutlet]="col.tpl" 
+              [ngTemplateOutletContext]="{ $implicit: row[col.key], row: row }"
+            ></ng-container>
+          </td>
+        }
+      </tr>
+    }
+  </tbody>
+</table>
+<ng-content></ng-content>
+*/
+
+// ===================== app.component.ts (example usage) =====================
+export interface IUser {
+  name: string;
+  age: number;
+  address: string;
+}
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [DynamicTableComponent, TableColumnDefDirective],
+  templateUrl: './app.component.html'
+})
+export class AppComponent {
+  users: IUser[] = [
+    { name: 'Alice', age: 28, address: '123 Main St' },
+    { name: 'Bob', age: 34, address: '456 Elm St' }
+  ];
+}
+
+// ===================== app.component.html (example usage) =====================
+/*
+<dynamic-table [data]="users">
+  <ng-template *tableColumnDef="'name'; label: 'Name'" let-value>
+    <strong>{{ value }}</strong>
+  </ng-template>
+  <ng-template *tableColumnDef="'age'; label: 'Age'" let-value>
+    <span>{{ value }}</span>
+  </ng-template>
+  <ng-template *tableColumnDef="'address'; label: 'Address'" let-value>
+    <span>{{ value }}</span>
+  </ng-template>
+</dynamic-table>
+*/
