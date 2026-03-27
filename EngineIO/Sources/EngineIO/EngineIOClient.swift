@@ -78,19 +78,42 @@ public struct EngineIOConfiguration: Sendable {
 ///
 /// Usage:
 /// ```swift
-/// let config = EngineIOConfiguration(url: "http://localhost:3000")
-/// let client = EngineIOClient(config: config)
-/// client.delegate = self
-/// client.connect()
+/// class MyConnection: EngineIOClientDelegate {
+///     let client: EngineIOClient
 ///
-/// // Send a text message
-/// client.send(text: "hello")
+///     init() {
+///         let config = EngineIOConfiguration(url: "http://localhost:3000")
+///         client = EngineIOClient(config: config)
+///         client.delegate = self
+///         client.connect()
+///     }
 ///
-/// // Send binary data
-/// client.send(data: someData)
+///     func engineDidOpen(_ client: EngineIOClient, handshake: HandshakeData) {
+///         print("Connected! sid=\(handshake.sid)")
+///         client.send(text: "hello")
+///         client.send(data: Data([0xDE, 0xAD]))
+///     }
 ///
-/// // Disconnect
-/// client.disconnect()
+///     func engineDidReceiveMessage(_ client: EngineIOClient, text: String) {
+///         print("Received text: \(text)")
+///     }
+///
+///     func engineDidReceiveBinaryMessage(_ client: EngineIOClient, data: Data) {
+///         print("Received binary: \(data.count) bytes")
+///     }
+///
+///     func engineDidClose(_ client: EngineIOClient, reason: String) {
+///         print("Disconnected: \(reason)")
+///     }
+///
+///     func engineDidError(_ client: EngineIOClient, error: Error) {
+///         print("Error: \(error.localizedDescription)")
+///     }
+///
+///     func engineDidUpgrade(_ client: EngineIOClient, from: TransportType, to: TransportType) {
+///         print("Upgraded from \(from) to \(to)")
+///     }
+/// }
 /// ```
 public final class EngineIOClient: NSObject {
     public weak var delegate: EngineIOClientDelegate?
