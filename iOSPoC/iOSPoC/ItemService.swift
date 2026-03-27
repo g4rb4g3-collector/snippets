@@ -6,6 +6,10 @@ class ItemService {
         Item(name: generateName(), values: generateValues())
     }
 
+    func getItems(count: Int = 20) -> [Item] {
+        (0..<count).map { _ in getItem() }
+    }
+
     // MARK: - Private
 
     private func generateName() -> String {
