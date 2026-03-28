@@ -38,7 +38,9 @@ public class BlinkingLabel: UILabel {
     /// Color used when the value decreases. Default is red.
     @IBInspectable public var decreaseColor: UIColor = .systemRed
 
-    private var originalColor: UIColor?
+    /// The base text color to revert to after a blink. Captured from
+    /// the initial textColor so it survives overlapping blinks.
+    private lazy var baseColor: UIColor = textColor
     private var revertWorkItem: DispatchWorkItem?
 
     // MARK: - Display
@@ -50,22 +52,14 @@ public class BlinkingLabel: UILabel {
     // MARK: - Blink animation
 
     private func blink(color: UIColor) {
-        // Cancel any pending revert so the new color takes over immediately.
         revertWorkItem?.cancel()
-
-        // Remember the base color only on the first (non-overlapping) blink.
-        if originalColor == nil {
-            originalColor = textColor
-        }
 
         textColor = color
 
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
             UIView.animate(withDuration: self.fadeDuration) {
-                self.textColor = self.originalColor
-            } completion: { _ in
-                self.originalColor = nil
+                self.textColor = self.baseColor
             }
         }
         revertWorkItem = workItem
