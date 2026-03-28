@@ -85,7 +85,7 @@ public struct EngineIOConfiguration: Sendable {
 ///         let config = EngineIOConfiguration(url: "http://localhost:3000")
 ///         client = EngineIOClient(config: config)
 ///         client.delegate = self
-///         client.connect()
+///         client.connect(sessionId: "my-session-token")
 ///     }
 ///
 ///     func engineDidOpen(_ client: EngineIOClient, handshake: HandshakeData) {
@@ -141,9 +141,22 @@ public final class EngineIOClient: NSObject {
     // MARK: - Public API
 
     /// Open the connection to the engine.io server.
-    public func connect() {
+    /// - Parameter sessionId: Optional value for the "session-id" cookie sent with every request.
+    public func connect(sessionId: String? = nil) {
         guard state == .disconnected else { return }
         state = .connecting
+
+        if let sessionId, let url = URL(string: config.url) {
+            let cookie = HTTPCookie(properties: [
+                .name: "session-id",
+                .value: sessionId,
+                .domain: url.host ?? "",
+                .path: "/",
+            ])
+            if let cookie {
+                session.configuration.httpCookieStorage?.setCookie(cookie)
+            }
+        }
 
         let initialTransport = config.transports.first ?? .polling
 
