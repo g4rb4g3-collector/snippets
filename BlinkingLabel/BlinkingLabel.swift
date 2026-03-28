@@ -26,14 +26,20 @@ public class BlinkingLabel: UILabel {
         }
     }
 
-    /// Duration of a single fade-out/fade-in cycle (seconds).
-    @IBInspectable public var blinkDuration: TimeInterval = 0.15
+    /// How long the color stays visible before fading back (seconds).
+    @IBInspectable public var colorHoldDuration: TimeInterval = 2.0
+
+    /// Duration of the fade-back animation to the original color (seconds).
+    @IBInspectable public var fadeDuration: TimeInterval = 0.3
 
     /// Color used when the value increases. Default is green.
     @IBInspectable public var increaseColor: UIColor = .systemGreen
 
     /// Color used when the value decreases. Default is red.
     @IBInspectable public var decreaseColor: UIColor = .systemRed
+
+    private var originalColor: UIColor?
+    private var revertWorkItem: DispatchWorkItem?
 
     // MARK: - Display
 
@@ -44,16 +50,26 @@ public class BlinkingLabel: UILabel {
     // MARK: - Blink animation
 
     private func blink(color: UIColor) {
-        let originalColor = textColor
+        // Cancel any pending revert so the new color takes over immediately.
+        revertWorkItem?.cancel()
+
+        // Remember the base color only on the first (non-overlapping) blink.
+        if originalColor == nil {
+            originalColor = textColor
+        }
+
         textColor = color
-        UIView.animate(withDuration: blinkDuration,
-                       animations: { self.alpha = 0 },
-                       completion: { _ in
-            UIView.animate(withDuration: self.blinkDuration) {
-                self.alpha = 1
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            UIView.animate(withDuration: self.fadeDuration) {
+                self.textColor = self.originalColor
             } completion: { _ in
-                self.textColor = originalColor
+                self.originalColor = nil
             }
-        })
+        }
+        revertWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + colorHoldDuration,
+                                      execute: workItem)
     }
 }
