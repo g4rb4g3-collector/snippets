@@ -14,28 +14,28 @@ final class SubscriptionManager {
     @discardableResult
     func subscribe(_ subscription: Subscription) -> SubscriptionToken {
         let token = SubscriptionToken(subscriptionId: subscription.id)
-        let addedTypes: [SubscriptionType] = queue.sync {
+        let (addedTypes, allTypes): ([SubscriptionType], [SubscriptionType]) = queue.sync {
             let before = activeTypes(for: subscription.id)
             registrations[token.id] = subscription
             let after = activeTypes(for: subscription.id)
-            return after.filter { !before.contains($0) }
+            return (after.filter { !before.contains($0) }, Array(after))
         }
         if !addedTypes.isEmpty {
-            notifyAll(.subscribed(id: subscription.id, types: addedTypes))
+            notifyAll(.subscribed(id: subscription.id, types: addedTypes, allTypes: allTypes))
         }
         return token
     }
 
     func unsubscribe(_ token: SubscriptionToken) {
-        let removedTypes: [SubscriptionType] = queue.sync {
-            guard registrations[token.id] != nil else { return [] }
+        let (removedTypes, remainingTypes): ([SubscriptionType], [SubscriptionType]) = queue.sync {
+            guard registrations[token.id] != nil else { return ([], []) }
             let before = activeTypes(for: token.subscriptionId)
             registrations.removeValue(forKey: token.id)
             let after = activeTypes(for: token.subscriptionId)
-            return before.filter { !after.contains($0) }
+            return (before.filter { !after.contains($0) }, Array(after))
         }
         if !removedTypes.isEmpty {
-            notifyAll(.unsubscribed(id: token.subscriptionId, types: removedTypes))
+            notifyAll(.unsubscribed(id: token.subscriptionId, types: removedTypes, remainingTypes: remainingTypes))
         }
     }
 
