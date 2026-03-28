@@ -1,32 +1,5 @@
 import Foundation
 
-enum SubscriptionType: String, Codable, CaseIterable {
-    case m1
-    case m5
-    case m15
-    case h1
-}
-
-struct Subscription: Hashable {
-    let id: String
-    let types: [SubscriptionType]
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-
-    static func == (lhs: Subscription, rhs: Subscription) -> Bool {
-        lhs.id == rhs.id
-    }
-}
-
-enum SubscriptionEvent {
-    case subscribed(Subscription)
-    case unsubscribed(Subscription)
-}
-
-typealias SubscriptionCallback = (SubscriptionEvent) -> Void
-
 final class SubscriptionManager {
     private var subscriptions: Set<Subscription> = []
     private var callbacks: [SubscriptionCallback] = []
