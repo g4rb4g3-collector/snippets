@@ -18,12 +18,22 @@ public class BlinkingLabel: UILabel {
     public var value: Double = 0 {
         didSet {
             updateText()
-            if oldValue != value { blink() }
+            if value > oldValue {
+                blink(color: increaseColor)
+            } else if value < oldValue {
+                blink(color: decreaseColor)
+            }
         }
     }
 
     /// Duration of a single fade-out/fade-in cycle (seconds).
     @IBInspectable public var blinkDuration: TimeInterval = 0.15
+
+    /// Color used when the value increases. Default is green.
+    @IBInspectable public var increaseColor: UIColor = .systemGreen
+
+    /// Color used when the value decreases. Default is red.
+    @IBInspectable public var decreaseColor: UIColor = .systemRed
 
     // MARK: - Display
 
@@ -33,12 +43,16 @@ public class BlinkingLabel: UILabel {
 
     // MARK: - Blink animation
 
-    private func blink() {
+    private func blink(color: UIColor) {
+        let originalColor = textColor
+        textColor = color
         UIView.animate(withDuration: blinkDuration,
                        animations: { self.alpha = 0 },
                        completion: { _ in
             UIView.animate(withDuration: self.blinkDuration) {
                 self.alpha = 1
+            } completion: { _ in
+                self.textColor = originalColor
             }
         })
     }
