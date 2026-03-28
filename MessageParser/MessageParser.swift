@@ -8,69 +8,29 @@ enum MessageType: String, Codable {
     case contactInfo
 }
 
-protocol Message {
+protocol Message: Codable {
     var type: MessageType { get }
-    mutating func update(from data: Data) throws
 }
 
-struct UserMessage: Message, Codable {
+struct UserMessage: Message {
     let type: MessageType
     var name: String
     var surname: String
     var age: Int
-
-    mutating func update(from data: Data) throws {
-        let patch = try JSONDecoder().decode(Patch.self, from: data)
-        if let name = patch.name { self.name = name }
-        if let surname = patch.surname { self.surname = surname }
-        if let age = patch.age { self.age = age }
-    }
-
-    private struct Patch: Decodable {
-        let name: String?
-        let surname: String?
-        let age: Int?
-    }
 }
 
-struct AddressMessage: Message, Codable {
+struct AddressMessage: Message {
     let type: MessageType
     var zipcode: String
     var country: String
     var city: String
     var street: String
-
-    mutating func update(from data: Data) throws {
-        let patch = try JSONDecoder().decode(Patch.self, from: data)
-        if let zipcode = patch.zipcode { self.zipcode = zipcode }
-        if let country = patch.country { self.country = country }
-        if let city = patch.city { self.city = city }
-        if let street = patch.street { self.street = street }
-    }
-
-    private struct Patch: Decodable {
-        let zipcode: String?
-        let country: String?
-        let city: String?
-        let street: String?
-    }
 }
 
-struct ContactInfoMessage: Message, Codable {
+struct ContactInfoMessage: Message {
     let type: MessageType
     var phone: String
     var email: String
-
-    mutating func update(from data: Data) throws {
-        let patch = try JSONDecoder().decode(Patch.self, from: data)
-        if let phone = patch.phone { self.phone = phone }
-        if let email = patch.email { self.email = email }
-    }
-
-    private struct Patch: Decodable {
-        let phone: String?
-        let email: String?
-    }
 }
 
 // MARK: - Dynamic Parser
@@ -91,6 +51,7 @@ enum MessageParseError: Error, CustomStringConvertible {
 
 struct MessageParser {
     private static let decoder = JSONDecoder()
+    private static let encoder = JSONEncoder()
 
     /// Decodes a single JSON message into the correct concrete type.
     static func parse(_ data: Data) throws -> Message {
@@ -113,6 +74,30 @@ struct MessageParser {
             let itemData = try JSONSerialization.data(withJSONObject: raw.value)
             return try parse(itemData)
         }
+    }
+
+    /// Generic update: merges partial JSON into any existing Message,
+    /// returning a new instance with only the provided fields overwritten.
+    static func update<T: Message>(_ message: T, with patch: Data) throws -> T {
+        // Encode current object to a dictionary
+        let originalData = try encoder.encode(message)
+        guard var original = try JSONSerialization.jsonObject(with: originalData) as? [String: Any] else {
+            throw MessageParseError.missingType
+        }
+
+        // Decode the patch into a dictionary
+        guard let patchDict = try JSONSerialization.jsonObject(with: patch) as? [String: Any] else {
+            throw MessageParseError.missingType
+        }
+
+        // Merge patch on top of original (patch wins)
+        for (key, value) in patchDict {
+            original[key] = value
+        }
+
+        // Decode the merged dictionary back into the concrete type
+        let mergedData = try JSONSerialization.data(withJSONObject: original)
+        return try decoder.decode(T.self, from: mergedData)
     }
 }
 
@@ -196,14 +181,13 @@ func demo() {
             }
         }
 
-        // Update example — partial JSON overwrites only the fields present
-        var user = messages[0]
-        let partialUpdate = """
-        { "age": 31, "name": "Jane" }
-        """.data(using: .utf8)!
+        // Generic update — works on any Message type, no boilerplate needed
+        if let user = messages[0] as? UserMessage {
+            let patch = """
+            { "age": 31, "name": "Jane" }
+            """.data(using: .utf8)!
 
-        try user.update(from: partialUpdate)
-        if let updated = user as? UserMessage {
+            let updated = try MessageParser.update(user, with: patch)
             print("Updated: \(updated.name) \(updated.surname), age \(updated.age)")
             // -> "Updated: Jane Doe, age 31"
         }
