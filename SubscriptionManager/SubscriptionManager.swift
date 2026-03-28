@@ -19,10 +19,10 @@ final class SubscriptionManager {
     }
 
     func unsubscribe(_ subscription: Subscription) {
-        queue.sync {
-            subscriptions.remove(subscription)
+        let removed = queue.sync { subscriptions.remove(subscription) }
+        if removed != nil {
+            notifyAll(.unsubscribed(subscription))
         }
-        notifyAll(.unsubscribed(subscription))
     }
 
     func getActiveSubscriptions() -> Set<Subscription> {
