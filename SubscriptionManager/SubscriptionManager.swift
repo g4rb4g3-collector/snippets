@@ -12,10 +12,10 @@ final class SubscriptionManager {
     }
 
     func subscribe(_ subscription: Subscription) {
-        queue.sync {
-            subscriptions.insert(subscription)
+        let (inserted, _) = queue.sync { subscriptions.insert(subscription) }
+        if inserted {
+            notifyAll(.subscribed(subscription))
         }
-        notifyAll(.subscribed(subscription))
     }
 
     func unsubscribe(_ subscription: Subscription) {
