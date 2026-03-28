@@ -38,6 +38,7 @@ struct ContactInfoMessage: Message {
 enum MessageParseError: Error, CustomStringConvertible {
     case missingType
     case unknownType(String)
+    case noExistingMessage(MessageType)
 
     var description: String {
         switch self {
@@ -45,67 +46,76 @@ enum MessageParseError: Error, CustomStringConvertible {
             return "JSON does not contain a 'type' field"
         case .unknownType(let type):
             return "Unknown message type: '\(type)'"
+        case .noExistingMessage(let type):
+            return "No existing message of type '\(type)' to update"
         }
     }
 }
 
-struct MessageParser {
-    private static let decoder = JSONDecoder()
-    private static let encoder = JSONEncoder()
+class MessageParser {
+    private let decoder = JSONDecoder()
+    private let encoder = JSONEncoder()
 
-    /// Decodes a single JSON message into the correct concrete type.
-    static func parse(_ data: Data) throws -> Message {
+    /// Stored messages keyed by type. Updated on parse and receive.
+    private(set) var messages: [MessageType: Message] = [:]
+
+    /// Decodes a full JSON message and stores it.
+    func parse(_ data: Data) throws -> Message {
         let typeContainer = try decoder.decode(TypeContainer.self, from: data)
 
+        let message: Message
         switch typeContainer.type {
         case .user:
-            return try decoder.decode(UserMessage.self, from: data)
+            message = try decoder.decode(UserMessage.self, from: data)
         case .address:
-            return try decoder.decode(AddressMessage.self, from: data)
+            message = try decoder.decode(AddressMessage.self, from: data)
         case .contactInfo:
-            return try decoder.decode(ContactInfoMessage.self, from: data)
+            message = try decoder.decode(ContactInfoMessage.self, from: data)
         }
+
+        messages[message.type] = message
+        return message
     }
 
-    /// Decodes a JSON array of mixed messages.
-    static func parseArray(_ data: Data) throws -> [Message] {
-        let rawMessages = try decoder.decode([RawJSON].self, from: data)
-        return try rawMessages.map { raw in
-            let itemData = try JSONSerialization.data(withJSONObject: raw.value)
-            return try parse(itemData)
-        }
-    }
+    /// Receives any JSON (full or partial). Reads the "type" field from the
+    /// incoming JSON, finds the stored object of that type, and merges.
+    /// If no stored object exists yet, parses as a full message.
+    @discardableResult
+    func receive(_ data: Data) throws -> Message {
+        let typeContainer = try decoder.decode(TypeContainer.self, from: data)
 
-    /// Merges partial JSON into any existing Message, using the object's own
-    /// type to decode back into the correct concrete struct.
-    /// The patch does NOT need a "type" field — it comes from the existing object.
-    static func update(_ message: Message, with patch: Data) throws -> Message {
-        // Encode current object to a dictionary
-        let originalData = try encoder.encode(message)
+        guard let existing = messages[typeContainer.type] else {
+            // First time seeing this type — parse as full message
+            return try parse(data)
+        }
+
+        // Merge incoming partial JSON on top of the existing object
+        let originalData = try encoder.encode(existing)
         guard var original = try JSONSerialization.jsonObject(with: originalData) as? [String: Any] else {
             throw MessageParseError.missingType
         }
 
-        // Decode the patch into a dictionary
-        guard let patchDict = try JSONSerialization.jsonObject(with: patch) as? [String: Any] else {
+        guard let patchDict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw MessageParseError.missingType
         }
 
-        // Merge patch on top of original (patch wins), but preserve the original type
-        for (key, value) in patchDict where key != "type" {
+        for (key, value) in patchDict {
             original[key] = value
         }
 
-        // Use the existing object's type to decode back into the right concrete struct
         let mergedData = try JSONSerialization.data(withJSONObject: original)
-        switch message.type {
+        let updated: Message
+        switch typeContainer.type {
         case .user:
-            return try decoder.decode(UserMessage.self, from: mergedData)
+            updated = try decoder.decode(UserMessage.self, from: mergedData)
         case .address:
-            return try decoder.decode(AddressMessage.self, from: mergedData)
+            updated = try decoder.decode(AddressMessage.self, from: mergedData)
         case .contactInfo:
-            return try decoder.decode(ContactInfoMessage.self, from: mergedData)
+            updated = try decoder.decode(ContactInfoMessage.self, from: mergedData)
         }
+
+        messages[typeContainer.type] = updated
+        return updated
     }
 }
 
@@ -150,57 +160,46 @@ private struct AnyCodable: Decodable {
 // MARK: - Usage Example
 
 func demo() {
-    let jsonArray = """
-    [
-        {
-            "type": "user",
-            "name": "John",
-            "surname": "Doe",
-            "age": 30
-        },
-        {
-            "type": "address",
-            "zipcode": "10001",
-            "country": "US",
-            "city": "New York",
-            "street": "5th Avenue"
-        },
-        {
-            "type": "contactInfo",
-            "phone": "+1-555-123-4567",
-            "email": "john@example.com"
-        }
-    ]
-    """.data(using: .utf8)!
+    let parser = MessageParser()
 
     do {
-        let messages = try MessageParser.parseArray(jsonArray)
-
-        for message in messages {
-            switch message {
-            case let user as UserMessage:
-                print("User: \(user.name) \(user.surname), age \(user.age)")
-            case let addr as AddressMessage:
-                print("Address: \(addr.street), \(addr.city), \(addr.country) \(addr.zipcode)")
-            case let contact as ContactInfoMessage:
-                print("Contact: \(contact.phone), \(contact.email)")
-            default:
-                break
-            }
-        }
-
-        // Update without knowing the concrete type — just pass any Message
-        let someMessage: Message = messages[0]  // could be any type
-        let patch = """
-        { "age": 31, "name": "Jane" }
+        // 1. Full message arrives
+        let fullUser = """
+        { "type": "user", "name": "John", "surname": "Doe", "age": 30 }
         """.data(using: .utf8)!
+        try parser.receive(fullUser)
 
-        let updated = try MessageParser.update(someMessage, with: patch)
-        // The result is the correct concrete type, resolved from the existing object
-        if let updatedUser = updated as? UserMessage {
-            print("Updated: \(updatedUser.name) \(updatedUser.surname), age \(updatedUser.age)")
-            // -> "Updated: Jane Doe, age 31"
+        // 2. Partial message arrives — just type + the fields to update
+        //    Parser reads "type", finds the stored User, merges automatically
+        let partialUser = """
+        { "type": "user", "age": 31 }
+        """.data(using: .utf8)!
+        let updated = try parser.receive(partialUser)
+
+        if let user = updated as? UserMessage {
+            print("\(user.name) \(user.surname), age \(user.age)")
+            // -> "John Doe, age 31"
         }
+
+        // 3. Works the same for any type
+        let fullAddress = """
+        { "type": "address", "zipcode": "10001", "country": "US", "city": "New York", "street": "5th Avenue" }
+        """.data(using: .utf8)!
+        try parser.receive(fullAddress)
+
+        let partialAddress = """
+        { "type": "address", "city": "Brooklyn" }
+        """.data(using: .utf8)!
+        let updatedAddr = try parser.receive(partialAddress)
+
+        if let addr = updatedAddr as? AddressMessage {
+            print("\(addr.street), \(addr.city), \(addr.country) \(addr.zipcode)")
+            // -> "5th Avenue, Brooklyn, US 10001"
+        }
+
+        // 4. Access any stored message by type at any time
+        let currentUser = parser.messages[.user]
+        print(currentUser!)
     } catch {
         print("Parse error: \(error)")
     }
