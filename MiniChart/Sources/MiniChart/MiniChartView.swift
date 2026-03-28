@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// A lightweight line chart view that renders an array of Double values as a continuous line.
 /// Supports long-press gesture to show a vertical indicator line with the selected value.
@@ -11,6 +14,9 @@ public struct MiniChartView: View {
 
     @State private var selectedIndex: Int?
     @State private var isTouching = false
+    #if canImport(UIKit)
+    private let haptic = UISelectionFeedbackGenerator()
+    #endif
 
     public init(
         data: [Double],
@@ -91,10 +97,18 @@ public struct MiniChartView: View {
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { drag in
-                            isTouching = true
+                            if !isTouching {
+                                isTouching = true
+                                #if canImport(UIKit)
+                                haptic.prepare()
+                                #endif
+                            }
                             let idx = indexForX(drag.location.x, stepX: stepX)
                             if idx != selectedIndex {
                                 selectedIndex = idx
+                                #if canImport(UIKit)
+                                haptic.selectionChanged()
+                                #endif
                                 if let idx = selectedIndex {
                                     onSelectionChanged((idx, data[idx]))
                                 }
