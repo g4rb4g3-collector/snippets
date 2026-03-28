@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import SwiftUI
 
-// MARK: - Message Types
+// MARK: - Message Types (plain Codable structs — no boilerplate)
 
 enum MessageType: String, Codable {
     case user
@@ -10,232 +10,265 @@ enum MessageType: String, Codable {
     case contactInfo
 }
 
-@Observable
-class UserMessage: Codable {
+struct UserMessage: Codable {
     let type: MessageType
     var name: String
     var surname: String
     var age: Int
-
-    init(type: MessageType, name: String, surname: String, age: Int) {
-        self.type = type
-        self.name = name
-        self.surname = surname
-        self.age = age
-    }
-
-    // Codable conformance — @Observable synthesizes storage that
-    // breaks automatic Codable, so we provide it explicitly.
-    enum CodingKeys: String, CodingKey {
-        case type, name, surname, age
-    }
-
-    required init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        type = try c.decode(MessageType.self, forKey: .type)
-        name = try c.decode(String.self, forKey: .name)
-        surname = try c.decode(String.self, forKey: .surname)
-        age = try c.decode(Int.self, forKey: .age)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(type, forKey: .type)
-        try c.encode(name, forKey: .name)
-        try c.encode(surname, forKey: .surname)
-        try c.encode(age, forKey: .age)
-    }
 }
 
-@Observable
-class AddressMessage: Codable {
+struct AddressMessage: Codable {
     let type: MessageType
     var zipcode: String
     var country: String
     var city: String
     var street: String
-
-    init(type: MessageType, zipcode: String, country: String, city: String, street: String) {
-        self.type = type
-        self.zipcode = zipcode
-        self.country = country
-        self.city = city
-        self.street = street
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case type, zipcode, country, city, street
-    }
-
-    required init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        type = try c.decode(MessageType.self, forKey: .type)
-        zipcode = try c.decode(String.self, forKey: .zipcode)
-        country = try c.decode(String.self, forKey: .country)
-        city = try c.decode(String.self, forKey: .city)
-        street = try c.decode(String.self, forKey: .street)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(type, forKey: .type)
-        try c.encode(zipcode, forKey: .zipcode)
-        try c.encode(country, forKey: .country)
-        try c.encode(city, forKey: .city)
-        try c.encode(street, forKey: .street)
-    }
 }
 
-@Observable
-class ContactInfoMessage: Codable {
+struct ContactInfoMessage: Codable {
     let type: MessageType
     var phone: String
     var email: String
+}
 
-    init(type: MessageType, phone: String, email: String) {
-        self.type = type
-        self.phone = phone
-        self.email = email
-    }
+// MARK: - Observable Wrapper
 
-    enum CodingKeys: String, CodingKey {
-        case type, phone, email
-    }
+/// Generic @Observable box that holds any Codable value.
+/// The reference stays the same — assigning .value triggers SwiftUI updates.
+@Observable
+class ObservableMessage<T: Codable> {
+    var value: T
 
-    required init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        type = try c.decode(MessageType.self, forKey: .type)
-        phone = try c.decode(String.self, forKey: .phone)
-        email = try c.decode(String.self, forKey: .email)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(type, forKey: .type)
-        try c.encode(phone, forKey: .phone)
-        try c.encode(email, forKey: .email)
+    init(_ value: T) {
+        self.value = value
     }
 }
 
-// MARK: - Dynamic Parser
+// MARK: - PatchDecoder: Custom Decoder that merges partial JSON onto an existing object
 
-enum MessageParseError: Error, CustomStringConvertible {
-    case missingType
-    case unknownType(String)
-    case typeMismatch
+/// A custom `Decoder` conforming to Swift's Decoder protocol.
+/// For keys present in the patch JSON, it returns the patch value.
+/// For missing keys, it falls back to the existing object's encoded values.
+/// Usage: `try PatchDecoder.decode(UserMessage.self, from: patchData, onto: existingUser)`
+enum PatchDecoder {
 
-    var description: String {
-        switch self {
-        case .missingType:
-            return "JSON does not contain a 'type' field"
-        case .unknownType(let type):
-            return "Unknown message type: '\(type)'"
-        case .typeMismatch:
-            return "Incoming type does not match stored object"
+    /// Decodes a partial JSON patch on top of an existing Codable value.
+    static func decode<T: Codable>(_ type: T.self, from patch: Data, onto existing: T) throws -> T {
+        let encoder = JSONEncoder()
+        let fallbackData = try encoder.encode(existing)
+
+        guard let fallback = try JSONSerialization.jsonObject(with: fallbackData) as? [String: Any] else {
+            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Could not encode existing object"))
         }
+
+        guard let patchDict = try JSONSerialization.jsonObject(with: patch) as? [String: Any] else {
+            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Patch is not a JSON object"))
+        }
+
+        let decoder = _PatchDecoder(patch: patchDict, fallback: fallback, codingPath: [])
+        return try T(from: decoder)
     }
 }
+
+// MARK: - Decoder conformance
+
+private struct _PatchDecoder: Decoder {
+    let patch: [String: Any]
+    let fallback: [String: Any]
+    let codingPath: [CodingKey]
+    var userInfo: [CodingUserInfoKey: Any] { [:] }
+
+    func container<Key: CodingKey>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
+        KeyedDecodingContainer(_PatchKeyedContainer<Key>(patch: patch, fallback: fallback, codingPath: codingPath))
+    }
+
+    func unkeyedContainer() throws -> UnkeyedDecodingContainer {
+        throw DecodingError.typeMismatch([Any].self, .init(codingPath: codingPath, debugDescription: "PatchDecoder only supports keyed containers"))
+    }
+
+    func singleValueContainer() throws -> SingleValueDecodingContainer {
+        throw DecodingError.typeMismatch(Any.self, .init(codingPath: codingPath, debugDescription: "PatchDecoder only supports keyed containers"))
+    }
+}
+
+// MARK: - KeyedDecodingContainer: reads from patch first, falls back to existing
+
+private struct _PatchKeyedContainer<Key: CodingKey>: KeyedDecodingContainerProtocol {
+    let patch: [String: Any]
+    let fallback: [String: Any]
+    let codingPath: [CodingKey]
+
+    var allKeys: [Key] {
+        let combined = Set(patch.keys).union(fallback.keys)
+        return combined.compactMap { Key(stringValue: $0) }
+    }
+
+    func contains(_ key: Key) -> Bool {
+        patch[key.stringValue] != nil || fallback[key.stringValue] != nil
+    }
+
+    /// Resolve value: patch wins, then fallback.
+    private func resolve(_ key: Key) throws -> Any {
+        if let value = patch[key.stringValue] { return value }
+        if let value = fallback[key.stringValue] { return value }
+        throw DecodingError.keyNotFound(key, .init(codingPath: codingPath, debugDescription: "Key '\(key.stringValue)' not found in patch or existing object"))
+    }
+
+    func decodeNil(forKey key: Key) throws -> Bool {
+        let value = try resolve(key)
+        return value is NSNull
+    }
+
+    func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool {
+        try cast(resolve(key), to: type, key: key)
+    }
+
+    func decode(_ type: String.Type, forKey key: Key) throws -> String {
+        try cast(resolve(key), to: type, key: key)
+    }
+
+    func decode(_ type: Double.Type, forKey key: Key) throws -> Double {
+        let value = try resolve(key)
+        if let v = value as? Double { return v }
+        if let v = value as? Int { return Double(v) }
+        if let v = value as? NSNumber { return v.doubleValue }
+        throw typeMismatch(type, value, key: key)
+    }
+
+    func decode(_ type: Float.Type, forKey key: Key) throws -> Float {
+        Float(try decode(Double.self, forKey: key))
+    }
+
+    func decode(_ type: Int.Type, forKey key: Key) throws -> Int {
+        let value = try resolve(key)
+        if let v = value as? Int { return v }
+        if let v = value as? NSNumber { return v.intValue }
+        throw typeMismatch(type, value, key: key)
+    }
+
+    func decode(_ type: Int8.Type, forKey key: Key) throws -> Int8 { Int8(try decode(Int.self, forKey: key)) }
+    func decode(_ type: Int16.Type, forKey key: Key) throws -> Int16 { Int16(try decode(Int.self, forKey: key)) }
+    func decode(_ type: Int32.Type, forKey key: Key) throws -> Int32 { Int32(try decode(Int.self, forKey: key)) }
+    func decode(_ type: Int64.Type, forKey key: Key) throws -> Int64 { Int64(try decode(Int.self, forKey: key)) }
+    func decode(_ type: UInt.Type, forKey key: Key) throws -> UInt { UInt(try decode(Int.self, forKey: key)) }
+    func decode(_ type: UInt8.Type, forKey key: Key) throws -> UInt8 { UInt8(try decode(Int.self, forKey: key)) }
+    func decode(_ type: UInt16.Type, forKey key: Key) throws -> UInt16 { UInt16(try decode(Int.self, forKey: key)) }
+    func decode(_ type: UInt32.Type, forKey key: Key) throws -> UInt32 { UInt32(try decode(Int.self, forKey: key)) }
+    func decode(_ type: UInt64.Type, forKey key: Key) throws -> UInt64 { UInt64(try decode(Int.self, forKey: key)) }
+
+    /// For complex Codable types (enums, nested objects), re-serialize the
+    /// resolved value back to JSON and use standard JSONDecoder.
+    func decode<T: Decodable>(_ type: T.Type, forKey key: Key) throws -> T {
+        let value = try resolve(key)
+        let data = try JSONSerialization.data(withJSONObject: value)
+        return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    func nestedContainer<NestedKey: CodingKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> {
+        let value = try resolve(key)
+        guard let dict = value as? [String: Any] else {
+            throw typeMismatch([String: Any].self, value, key: key)
+        }
+        let fallbackDict = fallback[key.stringValue] as? [String: Any] ?? [:]
+        return KeyedDecodingContainer(_PatchKeyedContainer<NestedKey>(patch: dict, fallback: fallbackDict, codingPath: codingPath + [key]))
+    }
+
+    func nestedUnkeyedContainer(forKey key: Key) throws -> UnkeyedDecodingContainer {
+        throw DecodingError.typeMismatch([Any].self, .init(codingPath: codingPath + [key], debugDescription: "Unkeyed containers not supported in PatchDecoder"))
+    }
+
+    func superDecoder() throws -> Decoder {
+        _PatchDecoder(patch: patch, fallback: fallback, codingPath: codingPath)
+    }
+
+    func superDecoder(forKey key: Key) throws -> Decoder {
+        let patchSub = patch[key.stringValue] as? [String: Any] ?? [:]
+        let fallbackSub = fallback[key.stringValue] as? [String: Any] ?? [:]
+        return _PatchDecoder(patch: patchSub, fallback: fallbackSub, codingPath: codingPath + [key])
+    }
+
+    // Helpers
+
+    private func cast<T>(_ value: Any, to type: T.Type, key: Key) throws -> T {
+        guard let typed = value as? T else { throw typeMismatch(type, value, key: key) }
+        return typed
+    }
+
+    private func typeMismatch<T>(_ type: T.Type, _ value: Any, key: Key) -> DecodingError {
+        DecodingError.typeMismatch(type, .init(codingPath: codingPath + [key], debugDescription: "Expected \(type), got \(Swift.type(of: value))"))
+    }
+}
+
+// MARK: - Parser (now uses PatchDecoder)
 
 @Observable
 class MessageParser {
     private let decoder = JSONDecoder()
 
-    /// Stored messages keyed by type.
-    private(set) var messages: [MessageType: AnyObject] = [:]
+    private(set) var user: ObservableMessage<UserMessage>?
+    private(set) var address: ObservableMessage<AddressMessage>?
+    private(set) var contactInfo: ObservableMessage<ContactInfoMessage>?
 
-    /// Receives any JSON (full or partial). On first receive for a type,
-    /// creates the object. On subsequent receives, updates the SAME
-    /// object instance in place — SwiftUI views holding a reference
-    /// will update automatically.
     @discardableResult
-    func receive(_ data: Data) throws -> AnyObject {
+    func receive(_ data: Data) throws -> Any {
         let typeContainer = try decoder.decode(TypeContainer.self, from: data)
-        let messageType = typeContainer.type
 
-        if let existing = messages[messageType] {
-            try applyPatch(data, to: existing, type: messageType)
-            return existing
-        } else {
-            let message = try createMessage(from: data, type: messageType)
-            messages[messageType] = message
-            return message
-        }
-    }
-
-    /// Returns the stored message for a given type, already cast.
-    func message<T: AnyObject>(for type: MessageType) -> T? {
-        messages[type] as? T
-    }
-
-    // MARK: - Private
-
-    private func createMessage(from data: Data, type: MessageType) throws -> AnyObject {
-        switch type {
+        switch typeContainer.type {
         case .user:
-            return try decoder.decode(UserMessage.self, from: data)
-        case .address:
-            return try decoder.decode(AddressMessage.self, from: data)
-        case .contactInfo:
-            return try decoder.decode(ContactInfoMessage.self, from: data)
-        }
-    }
-
-    /// Decodes partial JSON into a dictionary and applies only the
-    /// present fields to the existing object — mutating in place.
-    private func applyPatch(_ data: Data, to object: AnyObject, type: MessageType) throws {
-        guard let patch = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw MessageParseError.missingType
-        }
-
-        switch type {
-        case .user:
-            guard let user = object as? UserMessage else { throw MessageParseError.typeMismatch }
-            if let name = patch["name"] as? String { user.name = name }
-            if let surname = patch["surname"] as? String { user.surname = surname }
-            if let age = patch["age"] as? Int { user.age = age }
+            if let existing = user {
+                existing.value = try PatchDecoder.decode(UserMessage.self, from: data, onto: existing.value)
+                return existing
+            } else {
+                let msg = ObservableMessage(try decoder.decode(UserMessage.self, from: data))
+                user = msg
+                return msg
+            }
 
         case .address:
-            guard let addr = object as? AddressMessage else { throw MessageParseError.typeMismatch }
-            if let zipcode = patch["zipcode"] as? String { addr.zipcode = zipcode }
-            if let country = patch["country"] as? String { addr.country = country }
-            if let city = patch["city"] as? String { addr.city = city }
-            if let street = patch["street"] as? String { addr.street = street }
+            if let existing = address {
+                existing.value = try PatchDecoder.decode(AddressMessage.self, from: data, onto: existing.value)
+                return existing
+            } else {
+                let msg = ObservableMessage(try decoder.decode(AddressMessage.self, from: data))
+                address = msg
+                return msg
+            }
 
         case .contactInfo:
-            guard let contact = object as? ContactInfoMessage else { throw MessageParseError.typeMismatch }
-            if let phone = patch["phone"] as? String { contact.phone = phone }
-            if let email = patch["email"] as? String { contact.email = email }
+            if let existing = contactInfo {
+                existing.value = try PatchDecoder.decode(ContactInfoMessage.self, from: data, onto: existing.value)
+                return existing
+            } else {
+                let msg = ObservableMessage(try decoder.decode(ContactInfoMessage.self, from: data))
+                contactInfo = msg
+                return msg
+            }
         }
     }
 }
-
-// MARK: - Internal Helpers
 
 private struct TypeContainer: Decodable {
     let type: MessageType
 }
 
-// MARK: - Usage Example
+// MARK: - Service + SwiftUI
 
-// Service layer — holds the parser, not the view
 class MessageService {
     let parser = MessageParser()
 
-    func onMessageReceived(_ json: Data) throws {
+    func onReceived(_ json: Data) throws {
         try parser.receive(json)
     }
 }
 
-// SwiftUI view — holds a reference to the SAME object.
-// When parser.receive() mutates properties in place,
-// @Observable triggers a view update automatically.
+/// View only needs the wrapper reference — never re-assigned, always reactive.
 struct UserView: View {
-    var user: UserMessage  // same reference from parser
+    var user: ObservableMessage<UserMessage>
 
     var body: some View {
         VStack {
-            Text("\(user.name) \(user.surname)")
-            Text("Age: \(user.age)")
+            Text("\(user.value.name) \(user.value.surname)")
+            Text("Age: \(user.value.age)")
         }
     }
 }
@@ -244,32 +277,44 @@ struct ContentView: View {
     var service: MessageService
 
     var body: some View {
-        // Get the stored reference — stays the same across updates
-        if let user: UserMessage = service.parser.message(for: .user) {
-            UserView(user: user)
+        if let user = service.parser.user {
+            UserView(user: user)  // same reference forever
         }
     }
 }
+
+// MARK: - Demo
 
 func demo() {
     let service = MessageService()
 
     do {
-        // 1. Full message arrives — object created
-        try service.onMessageReceived("""
+        // Full message arrives
+        try service.onReceived("""
         { "type": "user", "name": "John", "surname": "Doe", "age": 30 }
         """.data(using: .utf8)!)
 
-        let user: UserMessage = service.parser.message(for: .user)!
-        print("\(user.name), age \(user.age)")  // -> "John, age 30"
+        let userRef = service.parser.user!
+        print("\(userRef.value.name), age \(userRef.value.age)")
+        // -> "John, age 30"
 
-        // 2. Partial arrives — SAME object mutated in place
-        try service.onMessageReceived("""
+        // Partial arrives — PatchDecoder reads "age" from patch,
+        // falls back to existing object for "name" and "surname"
+        try service.onReceived("""
         { "type": "user", "age": 31 }
         """.data(using: .utf8)!)
 
-        // Same reference, updated value — SwiftUI view refreshes automatically
-        print("\(user.name), age \(user.age)")  // -> "John, age 31"
+        print("\(userRef.value.name), age \(userRef.value.age)")
+        // -> "John, age 31"
+
+        // PatchDecoder also works standalone, without the parser:
+        let address = AddressMessage(type: .address, zipcode: "10001", country: "US", city: "New York", street: "5th Avenue")
+        let patched = try PatchDecoder.decode(AddressMessage.self, from: """
+        { "city": "Brooklyn", "street": "Atlantic Ave" }
+        """.data(using: .utf8)!, onto: address)
+
+        print("\(patched.street), \(patched.city), \(patched.country) \(patched.zipcode)")
+        // -> "Atlantic Ave, Brooklyn, US 10001"
     } catch {
         print("Error: \(error)")
     }
