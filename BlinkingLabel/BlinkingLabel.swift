@@ -38,9 +38,9 @@ public class BlinkingLabel: UILabel {
     /// Color used when the value decreases. Default is red.
     @IBInspectable public var decreaseColor: UIColor = .systemRed
 
-    /// The base text color to revert to after a blink. Captured from
-    /// the initial textColor so it survives overlapping blinks.
-    private lazy var baseColor: UIColor = textColor
+    /// The text color to revert to after a blink. Uses a dynamic color
+    /// so it adapts automatically to light/dark mode changes.
+    @IBInspectable public var baseColor: UIColor = .label
     private var revertWorkItem: DispatchWorkItem?
 
     // MARK: - Display
