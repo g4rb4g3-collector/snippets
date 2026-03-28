@@ -52,6 +52,17 @@ public class BlinkingLabel: UILabel {
         text = String(format: "%.\(precision)f", value)
     }
 
+    /// Cancels any pending revert animation and resets visual state.
+    /// Call this when the label is about to be reused for a different
+    /// data item (e.g. in a table/collection view cell).
+    public func reset() {
+        revertWorkItem?.cancel()
+        revertWorkItem = nil
+        value = nil
+        textColor = baseColor
+        layer.removeAllAnimations()
+    }
+
     // MARK: - Blink animation
 
     private func blink(color: UIColor) {
