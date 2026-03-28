@@ -1,7 +1,7 @@
 import Foundation
 
 final class SubscriptionManager {
-    private var subscriptions: Set<Subscription> = []
+    private var registrations: [UUID: Subscription] = [:]
     private var callbacks: [SubscriptionCallback] = []
     private let queue = DispatchQueue(label: "com.subscriptionmanager.sync")
 
@@ -11,26 +11,44 @@ final class SubscriptionManager {
         }
     }
 
-    func subscribe(_ subscription: Subscription) {
-        let (inserted, _) = queue.sync { subscriptions.insert(subscription) }
-        if inserted {
-            notifyAll(.subscribed(subscription))
+    @discardableResult
+    func subscribe(_ subscription: Subscription) -> SubscriptionToken {
+        let token = SubscriptionToken(subscriptionId: subscription.id)
+        let addedTypes: [SubscriptionType] = queue.sync {
+            let before = activeTypes(for: subscription.id)
+            registrations[token.id] = subscription
+            let after = activeTypes(for: subscription.id)
+            return after.filter { !before.contains($0) }
+        }
+        if !addedTypes.isEmpty {
+            notifyAll(.subscribed(id: subscription.id, types: addedTypes))
+        }
+        return token
+    }
+
+    func unsubscribe(_ token: SubscriptionToken) {
+        let removedTypes: [SubscriptionType] = queue.sync {
+            guard registrations[token.id] != nil else { return [] }
+            let before = activeTypes(for: token.subscriptionId)
+            registrations.removeValue(forKey: token.id)
+            let after = activeTypes(for: token.subscriptionId)
+            return before.filter { !after.contains($0) }
+        }
+        if !removedTypes.isEmpty {
+            notifyAll(.unsubscribed(id: token.subscriptionId, types: removedTypes))
         }
     }
 
-    func unsubscribe(_ subscription: Subscription) {
-        let removed = queue.sync { subscriptions.remove(subscription) }
-        if removed != nil {
-            notifyAll(.unsubscribed(subscription))
+    func getActiveTypes(for id: String) -> Set<SubscriptionType> {
+        queue.sync { activeTypes(for: id) }
+    }
+
+    private func activeTypes(for id: String) -> Set<SubscriptionType> {
+        var result = Set<SubscriptionType>()
+        for (_, reg) in registrations where reg.id == id {
+            result.formUnion(reg.types)
         }
-    }
-
-    func getActiveSubscriptions() -> Set<Subscription> {
-        queue.sync { subscriptions }
-    }
-
-    func isSubscribed(_ id: String) -> Bool {
-        queue.sync { subscriptions.contains(where: { $0.id == id }) }
+        return result
     }
 
     private func notifyAll(_ event: SubscriptionEvent) {
