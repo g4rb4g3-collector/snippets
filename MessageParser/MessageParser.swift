@@ -76,9 +76,10 @@ struct MessageParser {
         }
     }
 
-    /// Generic update: merges partial JSON into any existing Message,
-    /// returning a new instance with only the provided fields overwritten.
-    static func update<T: Message>(_ message: T, with patch: Data) throws -> T {
+    /// Merges partial JSON into any existing Message, using the object's own
+    /// type to decode back into the correct concrete struct.
+    /// The patch does NOT need a "type" field — it comes from the existing object.
+    static func update(_ message: Message, with patch: Data) throws -> Message {
         // Encode current object to a dictionary
         let originalData = try encoder.encode(message)
         guard var original = try JSONSerialization.jsonObject(with: originalData) as? [String: Any] else {
@@ -90,14 +91,21 @@ struct MessageParser {
             throw MessageParseError.missingType
         }
 
-        // Merge patch on top of original (patch wins)
-        for (key, value) in patchDict {
+        // Merge patch on top of original (patch wins), but preserve the original type
+        for (key, value) in patchDict where key != "type" {
             original[key] = value
         }
 
-        // Decode the merged dictionary back into the concrete type
+        // Use the existing object's type to decode back into the right concrete struct
         let mergedData = try JSONSerialization.data(withJSONObject: original)
-        return try decoder.decode(T.self, from: mergedData)
+        switch message.type {
+        case .user:
+            return try decoder.decode(UserMessage.self, from: mergedData)
+        case .address:
+            return try decoder.decode(AddressMessage.self, from: mergedData)
+        case .contactInfo:
+            return try decoder.decode(ContactInfoMessage.self, from: mergedData)
+        }
     }
 }
 
@@ -181,14 +189,16 @@ func demo() {
             }
         }
 
-        // Generic update — works on any Message type, no boilerplate needed
-        if let user = messages[0] as? UserMessage {
-            let patch = """
-            { "age": 31, "name": "Jane" }
-            """.data(using: .utf8)!
+        // Update without knowing the concrete type — just pass any Message
+        let someMessage: Message = messages[0]  // could be any type
+        let patch = """
+        { "age": 31, "name": "Jane" }
+        """.data(using: .utf8)!
 
-            let updated = try MessageParser.update(user, with: patch)
-            print("Updated: \(updated.name) \(updated.surname), age \(updated.age)")
+        let updated = try MessageParser.update(someMessage, with: patch)
+        // The result is the correct concrete type, resolved from the existing object
+        if let updatedUser = updated as? UserMessage {
+            print("Updated: \(updatedUser.name) \(updatedUser.surname), age \(updatedUser.age)")
             // -> "Updated: Jane Doe, age 31"
         }
     } catch {
