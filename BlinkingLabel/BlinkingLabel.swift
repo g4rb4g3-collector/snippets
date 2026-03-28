@@ -13,11 +13,13 @@ public class BlinkingLabel: UILabel {
         didSet { updateText() }
     }
 
-    /// The stored numeric value. Setting it re-formats the display and
-    /// triggers a short blink animation.
-    public var value: Double = 0 {
+    /// The stored numeric value. `nil` means no value has been set yet
+    /// (label shows empty text). The first assignment only formats the
+    /// text without blinking.
+    public var value: Double? {
         didSet {
             updateText()
+            guard let value, let oldValue else { return }
             if value > oldValue {
                 blink(color: increaseColor)
             } else if value < oldValue {
@@ -46,6 +48,7 @@ public class BlinkingLabel: UILabel {
     // MARK: - Display
 
     private func updateText() {
+        guard let value else { text = nil; return }
         text = String(format: "%.\(precision)f", value)
     }
 
