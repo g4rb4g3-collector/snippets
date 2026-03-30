@@ -1,4 +1,5 @@
 import SwiftUI
+import MiniChart
 
 struct ItemDetailView: View {
     let item: Item
