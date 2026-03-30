@@ -5,6 +5,7 @@ struct iOSPoCApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .tint(.warmAccent)
         }
     }
 }

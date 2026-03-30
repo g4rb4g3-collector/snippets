@@ -8,7 +8,7 @@ struct ItemDetailView: View {
             ForEach(1...3, id: \.self) { part in
                 Text("details for \(item.name), part \(part)")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.warmSecondaryText)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -20,4 +20,5 @@ struct ItemDetailView: View {
 
 #Preview {
     ItemDetailView(item: Item(name: "abc12345", values: []))
+        .background(Color.warmSecondaryBackground)
 }

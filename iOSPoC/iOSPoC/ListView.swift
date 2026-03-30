@@ -9,12 +9,15 @@ struct ListView: View {
         NavigationStack {
             List(items, id: \.name) { item in
                 ItemRow(item: item, isExpanded: expandedName == item.name)
+                    .listRowBackground(Color.warmSecondaryBackground)
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.25)) {
                             expandedName = expandedName == item.name ? nil : item.name
                         }
                     }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.warmBackground)
             .navigationTitle("List")
         }
     }
@@ -31,6 +34,7 @@ private struct ItemRow: View {
             HStack {
                 Text(item.name)
                     .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(Color.warmPrimaryText)
 
                 Spacer()
 
@@ -40,7 +44,7 @@ private struct ItemRow: View {
                             x: .value("Index", index),
                             y: .value("Value", value)
                         )
-                        .foregroundStyle(Color.blue)
+                        .foregroundStyle(Color.warmAccent)
                     }
                 }
                 .chartXAxis(.hidden)
