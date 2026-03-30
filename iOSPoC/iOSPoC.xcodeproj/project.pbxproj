@@ -124,7 +124,7 @@
 			);
 			mainGroup = B001000032000000;
 			packageReferences = (
-				B001000202000000 /* XCLocalSwiftPackageReference "../../MiniChart" */,
+				B001000202000000 /* XCLocalSwiftPackageReference "../MiniChart" */,
 			);
 			productRefGroup = B001000031000000 /* Products */;
 			projectDirPath = "";
@@ -361,16 +361,16 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		B001000202000000 /* XCLocalSwiftPackageReference "../../MiniChart" */ = {
+		B001000202000000 /* XCLocalSwiftPackageReference "../MiniChart" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../MiniChart;
+			relativePath = ../MiniChart;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		B001000201000000 /* MiniChart */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B001000202000000 /* XCLocalSwiftPackageReference "../../MiniChart" */;
+			package = B001000202000000 /* XCLocalSwiftPackageReference "../MiniChart" */;
 			productName = MiniChart;
 		};
 /* End XCSwiftPackageProductDependency section */
