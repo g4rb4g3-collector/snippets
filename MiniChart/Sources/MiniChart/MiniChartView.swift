@@ -37,8 +37,6 @@ public struct MiniChartView: View {
             if data.count >= 2, let minVal = data.min(), let maxVal = data.max() {
                 let range = maxVal - minVal
                 let effectiveRange = range == 0 ? 1.0 : range
-                let stepX = geometry.size.width / CGFloat(data.count - 1)
-
                 VStack(alignment: .leading, spacing: 2) {
                     // Value label in top-left corner
                     if isTouching, let idx = selectedIndex {
@@ -51,70 +49,76 @@ public struct MiniChartView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    ZStack(alignment: .topLeading) {
-                        // Line chart
-                        Path { path in
-                            for (index, value) in data.enumerated() {
-                                let x = stepX * CGFloat(index)
-                                let normalizedY = (value - minVal) / effectiveRange
-                                let y = geometry.size.height * (1 - CGFloat(normalizedY))
+                    GeometryReader { chartGeometry in
+                        let chartHeight = chartGeometry.size.height
+                        let chartWidth = chartGeometry.size.width
+                        let chartStepX = chartWidth / CGFloat(data.count - 1)
 
-                                if index == 0 {
-                                    path.move(to: CGPoint(x: x, y: y))
-                                } else {
-                                    path.addLine(to: CGPoint(x: x, y: y))
+                        ZStack(alignment: .topLeading) {
+                            // Line chart
+                            Path { path in
+                                for (index, value) in data.enumerated() {
+                                    let x = chartStepX * CGFloat(index)
+                                    let normalizedY = (value - minVal) / effectiveRange
+                                    let y = chartHeight * (1 - CGFloat(normalizedY))
+
+                                    if index == 0 {
+                                        path.move(to: CGPoint(x: x, y: y))
+                                    } else {
+                                        path.addLine(to: CGPoint(x: x, y: y))
+                                    }
                                 }
                             }
-                        }
-                        .stroke(lineColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+                            .stroke(lineColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
 
-                        // Vertical indicator + dot
-                        if isTouching, let idx = selectedIndex {
-                            let x = stepX * CGFloat(idx)
-                            let value = data[idx]
-                            let normalizedY = (value - minVal) / effectiveRange
-                            let y = geometry.size.height * (1 - CGFloat(normalizedY))
+                            // Vertical indicator + dot
+                            if isTouching, let idx = selectedIndex {
+                                let x = chartStepX * CGFloat(idx)
+                                let value = data[idx]
+                                let normalizedY = (value - minVal) / effectiveRange
+                                let y = chartHeight * (1 - CGFloat(normalizedY))
 
-                            Path { path in
-                                path.move(to: CGPoint(x: x, y: 0))
-                                path.addLine(to: CGPoint(x: x, y: geometry.size.height))
+                                Path { path in
+                                    path.move(to: CGPoint(x: x, y: 0))
+                                    path.addLine(to: CGPoint(x: x, y: chartHeight))
+                                }
+                                .stroke(indicatorColor, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+
+                                Circle()
+                                    .fill(lineColor)
+                                    .frame(width: 8, height: 8)
+                                    .position(x: x, y: y)
                             }
-                            .stroke(indicatorColor, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-
-                            Circle()
-                                .fill(lineColor)
-                                .frame(width: 8, height: 8)
-                                .position(x: x, y: y)
                         }
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { drag in
+                                    if !isTouching {
+                                        isTouching = true
+                                        #if canImport(UIKit)
+                                        haptic.prepare()
+                                        #endif
+                                    }
+                                    let idx = indexForX(drag.location.x, stepX: chartStepX)
+                                    if idx != selectedIndex {
+                                        selectedIndex = idx
+                                        #if canImport(UIKit)
+                                        haptic.selectionChanged()
+                                        #endif
+                                        if let idx = selectedIndex {
+                                            onSelectionChanged((idx, data[idx]))
+                                        }
+                                    }
+                                }
+                                .onEnded { _ in
+                                    isTouching = false
+                                    selectedIndex = nil
+                                    onSelectionChanged(nil)
+                                }
+                        )
                     }
                 }
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { drag in
-                            if !isTouching {
-                                isTouching = true
-                                #if canImport(UIKit)
-                                haptic.prepare()
-                                #endif
-                            }
-                            let idx = indexForX(drag.location.x, stepX: stepX)
-                            if idx != selectedIndex {
-                                selectedIndex = idx
-                                #if canImport(UIKit)
-                                haptic.selectionChanged()
-                                #endif
-                                if let idx = selectedIndex {
-                                    onSelectionChanged((idx, data[idx]))
-                                }
-                            }
-                        }
-                        .onEnded { _ in
-                            isTouching = false
-                            selectedIndex = nil
-                            onSelectionChanged(nil)
-                        }
-                )
             }
         }
     }
