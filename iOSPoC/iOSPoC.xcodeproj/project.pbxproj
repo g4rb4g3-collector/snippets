@@ -16,7 +16,7 @@
 		B001000113000000 /* ItemService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000007000000 /* ItemService.swift */; };
 		B001000115000000 /* ItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000008000000 /* ItemDetailView.swift */; };
 		B001000117000000 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000009000000 /* Theme.swift */; };
-		B001000120000000 /* MiniChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000012000000 /* MiniChartView.swift */; };
+		B001000200000000 /* MiniChart in Frameworks */ = {isa = PBXBuildFile; productRef = B001000201000000 /* MiniChart */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,7 +29,6 @@
 		B001000007000000 /* ItemService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemService.swift; sourceTree = "<group>"; };
 		B001000008000000 /* ItemDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailView.swift; sourceTree = "<group>"; };
 		B001000009000000 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
-		B001000012000000 /* MiniChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniChartView.swift; sourceTree = "<group>"; };
 		B001000010000000 /* iOSPoC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iOSPoC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -38,6 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B001000200000000 /* MiniChart in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -56,7 +56,6 @@
 				B001000007000000 /* ItemService.swift */,
 				B001000008000000 /* ItemDetailView.swift */,
 				B001000009000000 /* Theme.swift */,
-				B001000012000000 /* MiniChartView.swift */,
 			);
 			path = iOSPoC;
 			sourceTree = "<group>";
@@ -93,6 +92,9 @@
 			dependencies = (
 			);
 			name = iOSPoC;
+			packageProductDependencies = (
+				B001000201000000 /* MiniChart */,
+			);
 			productName = iOSPoC;
 			productReference = B001000010000000 /* iOSPoC.app */;
 			productType = "com.apple.product-type.application";
@@ -121,6 +123,9 @@
 				Base,
 			);
 			mainGroup = B001000032000000;
+			packageReferences = (
+				B001000202000000 /* XCLocalSwiftPackageReference "../../MiniChart" */,
+			);
 			productRefGroup = B001000031000000 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -154,7 +159,6 @@
 				B001000113000000 /* ItemService.swift in Sources */,
 				B001000115000000 /* ItemDetailView.swift in Sources */,
 				B001000117000000 /* Theme.swift in Sources */,
-				B001000120000000 /* MiniChartView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -355,6 +359,22 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		B001000202000000 /* XCLocalSwiftPackageReference "../../MiniChart" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../MiniChart;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B001000201000000 /* MiniChart */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B001000202000000 /* XCLocalSwiftPackageReference "../../MiniChart" */;
+			productName = MiniChart;
+		};
+/* End XCSwiftPackageProductDependency section */
+
 	};
 	rootObject = B001000070000000 /* Project object */;
 }
