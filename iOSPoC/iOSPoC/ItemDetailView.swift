@@ -5,7 +5,15 @@ struct ItemDetailView: View {
 
     var body: some View {
         TabView {
-            ForEach(1...3, id: \.self) { part in
+            MiniChartView(
+                data: item.values,
+                lineColor: .warmAccent,
+                indicatorColor: .warmSecondaryText
+            )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            ForEach(2...3, id: \.self) { part in
                 Text("details for \(item.name), part \(part)")
                     .font(.subheadline)
                     .foregroundStyle(Color.warmSecondaryText)
@@ -14,11 +22,11 @@ struct ItemDetailView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
         .indexViewStyle(.page(backgroundDisplayMode: .always))
-        .frame(height: 80)
+        .frame(height: 120)
     }
 }
 
 #Preview {
-    ItemDetailView(item: Item(name: "abc12345", values: []))
+    ItemDetailView(item: Item(name: "abc12345", values: (0..<50).map { _ in Double.random(in: 10...100) }))
         .background(Color.warmSecondaryBackground)
 }
