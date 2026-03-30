@@ -46,6 +46,7 @@ private struct ItemRow: View {
                 .chartXAxis(.hidden)
                 .chartYAxis(.hidden)
                 .chartLegend(.hidden)
+                .chartYScale(domain: (item.values.min() ?? 0)...(item.values.max() ?? 100))
                 .frame(width: 80, height: 36)
             }
             .padding(.vertical, 4)
