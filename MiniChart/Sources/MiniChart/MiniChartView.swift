@@ -39,58 +39,53 @@ public struct MiniChartView: View {
                 let effectiveRange = range == 0 ? 1.0 : range
                 let stepX = geometry.size.width / CGFloat(data.count - 1)
 
-                ZStack(alignment: .topLeading) {
-                    // Line chart
-                    Path { path in
-                        for (index, value) in data.enumerated() {
-                            let x = stepX * CGFloat(index)
+                VStack(alignment: .leading, spacing: 2) {
+                    // Value label in top-left corner
+                    if isTouching, let idx = selectedIndex {
+                        Text("selected value: \(formatValue(data[idx]))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("last value: \(formatValue(data[data.count - 1]))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    ZStack(alignment: .topLeading) {
+                        // Line chart
+                        Path { path in
+                            for (index, value) in data.enumerated() {
+                                let x = stepX * CGFloat(index)
+                                let normalizedY = (value - minVal) / effectiveRange
+                                let y = geometry.size.height * (1 - CGFloat(normalizedY))
+
+                                if index == 0 {
+                                    path.move(to: CGPoint(x: x, y: y))
+                                } else {
+                                    path.addLine(to: CGPoint(x: x, y: y))
+                                }
+                            }
+                        }
+                        .stroke(lineColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+
+                        // Vertical indicator + dot
+                        if isTouching, let idx = selectedIndex {
+                            let x = stepX * CGFloat(idx)
+                            let value = data[idx]
                             let normalizedY = (value - minVal) / effectiveRange
                             let y = geometry.size.height * (1 - CGFloat(normalizedY))
 
-                            if index == 0 {
-                                path.move(to: CGPoint(x: x, y: y))
-                            } else {
-                                path.addLine(to: CGPoint(x: x, y: y))
+                            Path { path in
+                                path.move(to: CGPoint(x: x, y: 0))
+                                path.addLine(to: CGPoint(x: x, y: geometry.size.height))
                             }
+                            .stroke(indicatorColor, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+
+                            Circle()
+                                .fill(lineColor)
+                                .frame(width: 8, height: 8)
+                                .position(x: x, y: y)
                         }
-                    }
-                    .stroke(lineColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-
-                    // Vertical indicator + dot + label
-                    if isTouching, let idx = selectedIndex {
-                        let x = stepX * CGFloat(idx)
-                        let value = data[idx]
-                        let normalizedY = (value - minVal) / effectiveRange
-                        let y = geometry.size.height * (1 - CGFloat(normalizedY))
-
-                        // Vertical line
-                        Path { path in
-                            path.move(to: CGPoint(x: x, y: 0))
-                            path.addLine(to: CGPoint(x: x, y: geometry.size.height))
-                        }
-                        .stroke(indicatorColor, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-
-                        // Dot on the line
-                        Circle()
-                            .fill(lineColor)
-                            .frame(width: 8, height: 8)
-                            .position(x: x, y: y)
-
-                        // Value label
-                        Text(formatValue(value))
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(labelBackgroundColor)
-                                    .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
-                            )
-                            .position(
-                                x: clampLabelX(x: x, width: geometry.size.width),
-                                y: max(y - 20, 10)
-                            )
                     }
                 }
                 .contentShape(Rectangle())
@@ -124,22 +119,9 @@ public struct MiniChartView: View {
         }
     }
 
-    private var labelBackgroundColor: Color {
-        #if canImport(UIKit)
-        Color(.systemBackground)
-        #else
-        Color(.windowBackgroundColor)
-        #endif
-    }
-
     private func indexForX(_ x: CGFloat, stepX: CGFloat) -> Int {
         let idx = Int(round(x / stepX))
         return max(0, min(data.count - 1, idx))
-    }
-
-    private func clampLabelX(x: CGFloat, width: CGFloat) -> CGFloat {
-        let margin: CGFloat = 30
-        return max(margin, min(width - margin, x))
     }
 
     private func formatValue(_ value: Double) -> String {
