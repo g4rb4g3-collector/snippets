@@ -1,5 +1,4 @@
 import SwiftUI
-import Charts
 
 struct ListView: View {
     private let items = ItemService().getItems()
@@ -38,20 +37,8 @@ private struct ItemRow: View {
 
                 Spacer()
 
-                Chart {
-                    ForEach(Array(item.values.enumerated()), id: \.offset) { index, value in
-                        LineMark(
-                            x: .value("Index", index),
-                            y: .value("Value", value)
-                        )
-                        .foregroundStyle(Color.warmAccent)
-                    }
-                }
-                .chartXAxis(.hidden)
-                .chartYAxis(.hidden)
-                .chartLegend(.hidden)
-                .chartYScale(domain: (item.values.min() ?? 0)...(item.values.max() ?? 100))
-                .frame(width: 80, height: 36)
+                SparklineView(values: item.values)
+                    .frame(width: 80, height: 36)
             }
             .padding(.vertical, 4)
 

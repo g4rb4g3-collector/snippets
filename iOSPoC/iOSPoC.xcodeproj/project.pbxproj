@@ -16,6 +16,7 @@
 		B001000113000000 /* ItemService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000007000000 /* ItemService.swift */; };
 		B001000115000000 /* ItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000008000000 /* ItemDetailView.swift */; };
 		B001000117000000 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000009000000 /* Theme.swift */; };
+		B001000118000000 /* SparklineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B001000013000000 /* SparklineView.swift */; };
 		B001000200000000 /* MiniChart in Frameworks */ = {isa = PBXBuildFile; productRef = B001000201000000 /* MiniChart */; };
 /* End PBXBuildFile section */
 
@@ -29,6 +30,7 @@
 		B001000007000000 /* ItemService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemService.swift; sourceTree = "<group>"; };
 		B001000008000000 /* ItemDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailView.swift; sourceTree = "<group>"; };
 		B001000009000000 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		B001000013000000 /* SparklineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparklineView.swift; sourceTree = "<group>"; };
 		B001000010000000 /* iOSPoC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iOSPoC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -56,6 +58,7 @@
 				B001000007000000 /* ItemService.swift */,
 				B001000008000000 /* ItemDetailView.swift */,
 				B001000009000000 /* Theme.swift */,
+				B001000013000000 /* SparklineView.swift */,
 			);
 			path = iOSPoC;
 			sourceTree = "<group>";
@@ -159,6 +162,7 @@
 				B001000113000000 /* ItemService.swift in Sources */,
 				B001000115000000 /* ItemDetailView.swift in Sources */,
 				B001000117000000 /* Theme.swift in Sources */,
+				B001000118000000 /* SparklineView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
