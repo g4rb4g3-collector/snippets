@@ -84,7 +84,7 @@ public struct MiniChartView: View {
                             .padding(.vertical, 3)
                             .background(
                                 RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color(.systemBackground))
+                                    .fill(labelBackgroundColor)
                                     .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
                             )
                             .position(
@@ -122,6 +122,14 @@ public struct MiniChartView: View {
                 )
             }
         }
+    }
+
+    private var labelBackgroundColor: Color {
+        #if canImport(UIKit)
+        Color(.systemBackground)
+        #else
+        Color(.windowBackgroundColor)
+        #endif
     }
 
     private func indexForX(_ x: CGFloat, stepX: CGFloat) -> Int {
