@@ -32,6 +32,6 @@ public static partial class Replacer
         return outputPath;
     }
 
-    [GeneratedRegex(@"\{\{(\w+)\}\}")]
+    [GeneratedRegex(@"\{\{([\w\-]+)\}\}")]
     private static partial Regex TokenPattern();
 }
