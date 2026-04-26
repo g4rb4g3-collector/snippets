@@ -21,18 +21,21 @@ def busy_wait_us(us):
         pass
 
 
-def transmit(pin, data):
+def transmit(pin, led, data):
     level = 1
     for duration in data:
         pin.value(level)
+        led.value(level)
         busy_wait_us(duration)
         level ^= 1
     pin.value(0)
+    led.value(0)
 
 
 tx = Pin(TX_PIN, Pin.OUT, value=0)
+led = Pin("LED", Pin.OUT, value=0)
 print("rf433 tx: replaying {} pulses x{} on GP{}".format(len(DATA), REPEATS, TX_PIN))
 for i in range(REPEATS):
-    transmit(tx, DATA)
+    transmit(tx, led, DATA)
     time.sleep_ms(GAP_MS)
 print("done")
