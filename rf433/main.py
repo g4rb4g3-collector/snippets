@@ -16,6 +16,7 @@ MAX_EDGES = 8192   # ~32 KB; plenty for a few seconds of 433 MHz traffic
 
 
 rx = Pin(RX_PIN, Pin.IN)
+led = Pin("LED", Pin.OUT, value=0)   # mirrors RX line (works on Pico and Pico W)
 edges = array.array('I', [0] * MAX_EDGES)
 count = 0
 started = False
@@ -25,8 +26,10 @@ last_us = 0
 def on_edge(pin):
     global count, started, last_us
     now = time.ticks_us()
+    level = pin.value()
+    led.value(level)
     if not started:
-        if pin.value() == 1:        # first rising edge — start the clock
+        if level == 1:              # first rising edge — start the clock
             started = True
             last_us = now
         return
