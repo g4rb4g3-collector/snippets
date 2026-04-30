@@ -21,22 +21,22 @@ def fresh_path() -> str:
 
 def make_store(without_rowid: bool) -> tuple[str, KVStore]:
     path = fresh_path()
-    if without_rowid:
-        c = sqlite3.connect(path)
-        c.execute(
-            """
-            CREATE TABLE kv (
-                key1 TEXT NOT NULL,
-                key2 TEXT NOT NULL DEFAULT '',
-                key3 TEXT NOT NULL DEFAULT '',
-                key4 TEXT NOT NULL DEFAULT '',
-                value TEXT NOT NULL,
-                PRIMARY KEY (key1, key2, key3, key4)
-            ) WITHOUT ROWID
-            """
-        )
-        c.commit()
-        c.close()
+    suffix = "WITHOUT ROWID" if without_rowid else ""
+    c = sqlite3.connect(path)
+    c.execute(
+        f"""
+        CREATE TABLE kv (
+            key1 TEXT NOT NULL,
+            key2 TEXT NOT NULL DEFAULT '',
+            key3 TEXT NOT NULL DEFAULT '',
+            key4 TEXT NOT NULL DEFAULT '',
+            value TEXT NOT NULL,
+            PRIMARY KEY (key1, key2, key3, key4)
+        ) {suffix}
+        """
+    )
+    c.commit()
+    c.close()
     return path, KVStore(path)
 
 
