@@ -34,7 +34,7 @@ class KVStore:
                 key4 TEXT NOT NULL DEFAULT '',
                 value TEXT NOT NULL,
                 PRIMARY KEY (key1, key2, key3, key4)
-            )
+            ) WITHOUT ROWID
             """
         )
         self._conn.commit()
@@ -84,6 +84,7 @@ class KVStore:
         return keys + (_MISSING,) * (_MAX_KEYS - len(keys))
 
     def set(self, *keys: str, value: Any) -> None:
+        # O(log n) — pojedynczy upsert po PK index (B-tree).
         full = self._normalize(keys)
         self._conn.execute(
             "INSERT OR REPLACE INTO kv (key1, key2, key3, key4, value) "
@@ -93,6 +94,7 @@ class KVStore:
         self._commit()
 
     def get(self, *keys: str, default: Any = None) -> Any:
+        # O(log n) — pojedyncze wyszukiwanie po PK index.
         full = self._normalize(keys)
         row = self._conn.execute(
             "SELECT value FROM kv WHERE key1=? AND key2=? AND key3=? AND key4=?",
@@ -102,6 +104,7 @@ class KVStore:
 
     def update(self, *keys: str, value: Any) -> bool:
         """Aktualizuje istniejący wpis. Zwraca True jeśli wpis istniał."""
+        # O(log n) — UPDATE po PK index.
         full = self._normalize(keys)
         cur = self._conn.execute(
             "UPDATE kv SET value=? WHERE key1=? AND key2=? AND key3=? AND key4=?",
@@ -112,6 +115,7 @@ class KVStore:
 
     def delete(self, *keys: str) -> bool:
         """Usuwa wpis. Zwraca True jeśli wpis istniał."""
+        # O(log n) — DELETE po PK index.
         full = self._normalize(keys)
         cur = self._conn.execute(
             "DELETE FROM kv WHERE key1=? AND key2=? AND key3=? AND key4=?",
@@ -128,6 +132,8 @@ class KVStore:
         Wiersz znajdujący się dokładnie na prefiksie jest pomijany.
         Bez argumentów zwraca wszystkie wiersze (suffix = pełna krotka kluczy).
         """
+        # O(log n + k) — seek po prefiksie + range scan k pasujących wierszy
+        # (dla pustego prefiksu degeneruje się do pełnego skanu O(n)).
         if len(prefix) >= _MAX_KEYS:
             raise ValueError(f"prefix length must be 0..{_MAX_KEYS - 1}")
         for k in prefix:
