@@ -119,3 +119,33 @@ class KVStore:
         )
         self._commit()
         return cur.rowcount > 0
+
+    def items(self, *prefix: str) -> list:
+        """Wiersze poniżej prefiksu — zwraca [(suffix_keys, value), ...].
+
+        `suffix_keys` to krotka kluczy spoza prefiksu (np. dla prefiksu
+        ("game1","users") wiersz ("game1","users","ala") daje suffix ("ala",)).
+        Wiersz znajdujący się dokładnie na prefiksie jest pomijany.
+        Bez argumentów zwraca wszystkie wiersze (suffix = pełna krotka kluczy).
+        """
+        if len(prefix) >= _MAX_KEYS:
+            raise ValueError(f"prefix length must be 0..{_MAX_KEYS - 1}")
+        for k in prefix:
+            if not isinstance(k, str):
+                raise TypeError(f"keys must be str, got {type(k).__name__}")
+            if k == _MISSING:
+                raise ValueError("key cannot be empty string")
+
+        where = [f"key{i + 1}=?" for i in range(len(prefix))]
+        where.append(f"key{len(prefix) + 1} != ''")
+        sql = (
+            "SELECT key1, key2, key3, key4, value FROM kv "
+            "WHERE " + " AND ".join(where) +
+            " ORDER BY key1, key2, key3, key4"
+        )
+        result = []
+        for row in self._conn.execute(sql, prefix):
+            keys = row[:_MAX_KEYS]
+            suffix = tuple(k for k in keys[len(prefix):] if k != _MISSING)
+            result.append((suffix, json.loads(row[_MAX_KEYS])))
+        return result

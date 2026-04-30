@@ -107,6 +107,49 @@ class TestKVStore(unittest.TestCase):
         self.assertEqual(self.store.get("b"), 2)
         self.assertEqual(self.store.get("c"), 3)
 
+    def test_items_no_prefix_returns_all(self) -> None:
+        self.store.set("a", value=1)
+        self.store.set("b", "c", value=2)
+        self.store.set("b", "c", "d", value=3)
+        result = self.store.items()
+        self.assertCountEqual(result, [
+            (("a",), 1),
+            (("b", "c"), 2),
+            (("b", "c", "d"), 3),
+        ])
+
+    def test_items_with_prefix_returns_suffix_only(self) -> None:
+        self.store.set("game1", "users", "ala", value={"email": "a"})
+        self.store.set("game1", "users", "bob", value={"email": "b"})
+        self.store.set("game2", "users", "ola", value={"email": "o"})
+        result = self.store.items("game1", "users")
+        self.assertCountEqual(result, [
+            (("ala",), {"email": "a"}),
+            (("bob",), {"email": "b"}),
+        ])
+
+    def test_items_excludes_row_exactly_on_prefix(self) -> None:
+        self.store.set("a", "b", value="exact")
+        self.store.set("a", "b", "c", value="deeper")
+        self.assertEqual(self.store.items("a", "b"), [(("c",), "deeper")])
+
+    def test_items_includes_deeper_descendants(self) -> None:
+        self.store.set("a", "b", "c", value=1)
+        self.store.set("a", "b", "c", "d", value=2)
+        result = self.store.items("a")
+        self.assertCountEqual(result, [
+            (("b", "c"), 1),
+            (("b", "c", "d"), 2),
+        ])
+
+    def test_items_returns_empty_when_no_match(self) -> None:
+        self.store.set("a", value=1)
+        self.assertEqual(self.store.items("nope"), [])
+
+    def test_items_validates_prefix_length(self) -> None:
+        with self.assertRaises(ValueError):
+            self.store.items("a", "b", "c", "d")
+
     def test_transaction_nested_inner_exception_rolls_back_all(self) -> None:
         with self.assertRaises(RuntimeError):
             with self.store.transaction():
