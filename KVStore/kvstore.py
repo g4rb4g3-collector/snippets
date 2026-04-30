@@ -2,17 +2,20 @@
 
 Jedna tabela, do 4 stringowych kluczy (key1..key4) i wartość JSON.
 Metody set/get/update/delete przyjmują dynamicznie 1..4 klucze pozycyjnie.
+Operacje można grupować w transakcję przez `with store.transaction():`.
 
 Przykład:
     store = KVStore("data.db")
     store.set("users", "active", value={"name": "Ala"})
     store.get("users", "active")            # -> {"name": "Ala"}
-    store.update("users", "active", value={"name": "Ola"})
-    store.delete("users", "active")
+    with store.transaction():
+        store.update("users", "active", value={"name": "Ola"})
+        store.delete("users", "active")
 """
 import json
 import sqlite3
-from typing import Any
+from contextlib import contextmanager
+from typing import Any, Iterator
 
 _MAX_KEYS = 4
 _MISSING = ""  # sentinel for unused key positions; klucze nie mogą być pustym stringiem
@@ -21,6 +24,7 @@ _MISSING = ""  # sentinel for unused key positions; klucze nie mogą być pustym
 class KVStore:
     def __init__(self, path: str = ":memory:"):
         self._conn = sqlite3.connect(path)
+        self._tx_depth = 0
         self._conn.execute(
             """
             CREATE TABLE IF NOT EXISTS kv (
@@ -44,6 +48,30 @@ class KVStore:
     def __exit__(self, *_: Any) -> None:
         self.close()
 
+    def _commit(self) -> None:
+        if self._tx_depth == 0:
+            self._conn.commit()
+
+    @contextmanager
+    def transaction(self) -> Iterator["KVStore"]:
+        """Grupuje operacje w jedną transakcję. Rollback przy wyjątku.
+
+        Wspiera zagnieżdżanie — tylko najbardziej zewnętrzne `with` faktycznie
+        commituje/rollbackuje; wyjątek w wewnętrznym bloku przerywa też zewnętrzny.
+        """
+        self._tx_depth += 1
+        try:
+            yield self
+        except Exception:
+            if self._tx_depth == 1:
+                self._conn.rollback()
+            self._tx_depth -= 1
+            raise
+        else:
+            self._tx_depth -= 1
+            if self._tx_depth == 0:
+                self._conn.commit()
+
     @staticmethod
     def _normalize(keys: tuple) -> tuple:
         if not 1 <= len(keys) <= _MAX_KEYS:
@@ -62,7 +90,7 @@ class KVStore:
             "VALUES (?, ?, ?, ?, ?)",
             (*full, json.dumps(value)),
         )
-        self._conn.commit()
+        self._commit()
 
     def get(self, *keys: str, default: Any = None) -> Any:
         full = self._normalize(keys)
@@ -79,7 +107,7 @@ class KVStore:
             "UPDATE kv SET value=? WHERE key1=? AND key2=? AND key3=? AND key4=?",
             (json.dumps(value), *full),
         )
-        self._conn.commit()
+        self._commit()
         return cur.rowcount > 0
 
     def delete(self, *keys: str) -> bool:
@@ -89,5 +117,5 @@ class KVStore:
             "DELETE FROM kv WHERE key1=? AND key2=? AND key3=? AND key4=?",
             full,
         )
-        self._conn.commit()
+        self._commit()
         return cur.rowcount > 0

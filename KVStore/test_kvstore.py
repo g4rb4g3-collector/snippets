@@ -80,6 +80,43 @@ class TestKVStore(unittest.TestCase):
             s.set("x", value=1)
             self.assertEqual(s.get("x"), 1)
 
+    def test_transaction_commits_on_success(self) -> None:
+        with self.store.transaction():
+            self.store.set("a", value=1)
+            self.store.set("b", value=2)
+        self.assertEqual(self.store.get("a"), 1)
+        self.assertEqual(self.store.get("b"), 2)
+
+    def test_transaction_rolls_back_on_exception(self) -> None:
+        self.store.set("a", value="orig")
+        with self.assertRaises(RuntimeError):
+            with self.store.transaction():
+                self.store.update("a", value="new")
+                self.store.set("b", value=99)
+                raise RuntimeError("boom")
+        self.assertEqual(self.store.get("a"), "orig")
+        self.assertIsNone(self.store.get("b"))
+
+    def test_transaction_nested_commits_once(self) -> None:
+        with self.store.transaction():
+            self.store.set("a", value=1)
+            with self.store.transaction():
+                self.store.set("b", value=2)
+            self.store.set("c", value=3)
+        self.assertEqual(self.store.get("a"), 1)
+        self.assertEqual(self.store.get("b"), 2)
+        self.assertEqual(self.store.get("c"), 3)
+
+    def test_transaction_nested_inner_exception_rolls_back_all(self) -> None:
+        with self.assertRaises(RuntimeError):
+            with self.store.transaction():
+                self.store.set("a", value=1)
+                with self.store.transaction():
+                    self.store.set("b", value=2)
+                    raise RuntimeError("boom")
+        self.assertIsNone(self.store.get("a"))
+        self.assertIsNone(self.store.get("b"))
+
 
 if __name__ == "__main__":
     unittest.main()
